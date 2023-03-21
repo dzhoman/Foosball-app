@@ -112,7 +112,7 @@ class GamesSharedViewModel @Inject constructor(
                 )
                 result[game.firstPerson] = firstItem.copy(gamesCount = firstItem.gamesCount.inc())
             }
-            if (game.firstPerson == game.secondPerson) {
+            if (game.firstScore == game.secondScore) {
                 result[game.secondPerson] =
                     secondItem.copy(gamesCount = secondItem.gamesCount.inc())
                 result[game.firstPerson] = firstItem.copy(gamesCount = firstItem.gamesCount.inc())
