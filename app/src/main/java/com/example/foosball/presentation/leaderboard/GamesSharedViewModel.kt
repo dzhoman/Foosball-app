@@ -7,21 +7,21 @@ import com.example.foosball.domain.entity.GameResultEntity
 import com.example.foosball.domain.entity.LeaderboardItemEntity
 import com.example.foosball.domain.leaderboard.AddGameUseCase
 import com.example.foosball.domain.leaderboard.GetGamesUseCase
+import com.example.foosball.presentation.model.GameResult
 import com.example.foosball.utils.SingleLiveEvent
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.subjects.PublishSubject
 import javax.inject.Inject
 
-class LeaderboardViewModel @Inject constructor(
-    private val getGamesUseCase: GetGamesUseCase,
-    private val addGameUseCase: AddGameUseCase
+class GamesSharedViewModel @Inject constructor(
+    private val getGamesUseCase: GetGamesUseCase, private val addGameUseCase: AddGameUseCase
 ) : ViewModel() {
 
     enum class SortBy {
         GAMES_WON, GAMES_COUNT
     }
 
-    private val sortTrigger = PublishSubject.create<List<GameResultEntity>>()
+    private val updateLeaderboardsTrigger = PublishSubject.create<List<GameResultEntity>>()
 
     private val compositeDisposable: CompositeDisposable = CompositeDisposable()
 
@@ -37,51 +37,43 @@ class LeaderboardViewModel @Inject constructor(
     private val _errorEvent = SingleLiveEvent<String>()
     val errorEvent: SingleLiveEvent<String> = _errorEvent
 
-
     private val _sortTypeLiveData = MutableLiveData(SortBy.GAMES_WON)
 
     init {
-        compositeDisposable.add(
-            sortTrigger
-                .map { convertToLeaderboards(it) }
-                .map { sort(it) }
-                .subscribe({ games ->
-                    _leaderboardLiveData.postValue(games)
-                }, { error ->
-                    errorEvent.postValue(error.localizedMessage ?: "")
-                })
+        compositeDisposable.add(updateLeaderboardsTrigger.map { convertToLeaderboards(it) }
+            .map { sort(it) }.subscribe({ games ->
+                _leaderboardLiveData.postValue(games)
+            }, { error ->
+                _errorEvent.postValue(error.localizedMessage ?: "")
+            })
         )
     }
 
     fun getGames() {
         compositeDisposable.add(
-            getGamesUseCase.invoke()
-                .doOnSuccess {
-                    _gamesLiveData.postValue(it)
-                }
-                .subscribe({ games ->
-                    sortTrigger.onNext(games)
-                }, { error ->
-                    errorEvent.postValue(error.localizedMessage ?: "")
-                })
+            getGamesUseCase.invoke().subscribe({ games ->
+                _gamesLiveData.postValue(games)
+                //we have new game list, so update leaderboard
+                updateLeaderboardsTrigger.onNext(games)
+            }, { error ->
+                _errorEvent.postValue(error.localizedMessage ?: "")
+            })
         )
     }
 
     fun addGame(firstPlayer: String, secondPlayer: String, firstScore: Int, secondScore: Int) {
-        compositeDisposable.add(addGameUseCase.invoke(
-            GameResultEntity(
-                firstPlayer,
-                secondPlayer,
-                firstScore,
-                secondScore
-            )
-        )
-            .doOnSuccess {
-                _gamesLiveData.postValue(it)
+        compositeDisposable.add(
+            addGameUseCase.invoke(
+                GameResult(
+                    firstPerson = firstPlayer,
+                    secondPerson = secondPlayer,
+                    firstScore = firstScore,
+                    secondScore = secondScore
+                )
+            ).subscribe({ games ->
+                _gamesLiveData.postValue(games)
                 _gameAddedLiveData.postValue(true)
-            }
-            .subscribe({ games ->
-                sortTrigger.onNext(games)
+                updateLeaderboardsTrigger.onNext(games)
             }, { error ->
                 _errorEvent.postValue(error.localizedMessage ?: "")
             })
@@ -109,19 +101,21 @@ class LeaderboardViewModel @Inject constructor(
                 result[game.secondPerson] ?: LeaderboardItemEntity(game.secondPerson, 0, 0)
             if (game.firstScore > game.secondScore) {
                 result[game.firstPerson] = firstItem.copy(
-                    gamesCount = firstItem.gamesCount.inc(),
-                    gamesWon = firstItem.gamesWon.inc()
+                    gamesCount = firstItem.gamesCount.inc(), gamesWon = firstItem.gamesWon.inc()
                 )
                 result[game.secondPerson] =
                     secondItem.copy(gamesCount = secondItem.gamesCount.inc())
             }
             if (game.firstScore < game.secondScore) {
                 result[game.secondPerson] = secondItem.copy(
-                    gamesCount = secondItem.gamesCount.inc(),
-                    gamesWon = secondItem.gamesWon.inc()
+                    gamesCount = secondItem.gamesCount.inc(), gamesWon = secondItem.gamesWon.inc()
                 )
-                result[game.firstPerson] =
-                    firstItem.copy(gamesCount = firstItem.gamesCount.inc())
+                result[game.firstPerson] = firstItem.copy(gamesCount = firstItem.gamesCount.inc())
+            }
+            if (game.firstPerson == game.secondPerson) {
+                result[game.secondPerson] =
+                    secondItem.copy(gamesCount = secondItem.gamesCount.inc())
+                result[game.firstPerson] = firstItem.copy(gamesCount = firstItem.gamesCount.inc())
             }
         }
         return result.values.toList()
@@ -129,7 +123,7 @@ class LeaderboardViewModel @Inject constructor(
 
     fun sortChanged(sortType: SortBy) {
         _sortTypeLiveData.value = sortType
-        sortTrigger.onNext(_gamesLiveData.value ?: emptyList())
+        updateLeaderboardsTrigger.onNext(_gamesLiveData.value ?: emptyList())
     }
 
     override fun onCleared() {

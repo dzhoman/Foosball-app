@@ -19,7 +19,7 @@ class GamesListFragment : Fragment(R.layout.fragment_games) {
 
     @Inject
     lateinit var factory: ViewModelProvider.Factory
-    private val viewModel: LeaderboardViewModel by activityViewModels { factory }
+    private val viewModel: GamesSharedViewModel by activityViewModels { factory }
 
     private val viewBinding by viewBinding(FragmentGamesBinding::bind)
 
@@ -48,6 +48,6 @@ class GamesListFragment : Fragment(R.layout.fragment_games) {
 
     private fun initList() {
         viewBinding.rvGames.layoutManager = LinearLayoutManager(requireContext())
-        viewBinding.rvGames.adapter = GamesListAdapter(listOf())
+        viewBinding.rvGames.adapter = GamesListAdapter()
     }
 }

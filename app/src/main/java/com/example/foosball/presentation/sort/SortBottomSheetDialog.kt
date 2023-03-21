@@ -1,33 +1,30 @@
 package com.example.foosball.presentation.sort
 
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
-import android.widget.TextView
+import by.kirich1409.viewbindingdelegate.viewBinding
 import com.example.foosball.R
+import com.example.foosball.databinding.SortBottomSheetFragmentBinding
+import com.example.foosball.utils.onClick
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
-class SortBottomSheetDialog(private val listener: OnSortTypeClickListener) : BottomSheetDialogFragment() {
+class SortBottomSheetDialog(private val listener: OnSortTypeClickListener) :
+    BottomSheetDialogFragment(R.layout.sort_bottom_sheet_fragment) {
+
+    private val viewBinding by viewBinding(SortBottomSheetFragmentBinding::bind)
 
     interface OnSortTypeClickListener {
         fun sortByGamesWon()
         fun sortByGamesCount()
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? = inflater.inflate(R.layout.sort_bottom_sheet_fragment, container, false)
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        view.findViewById<TextView>(R.id.tvSortByGamesWon).setOnClickListener {
+        viewBinding.tvSortByGamesWon.onClick {
             listener.sortByGamesWon()
             dismiss()
         }
-        view.findViewById<TextView>(R.id.tvSortByGamesCount).setOnClickListener {
+        viewBinding.tvSortByGamesCount.onClick {
             listener.sortByGamesCount()
             dismiss()
         }

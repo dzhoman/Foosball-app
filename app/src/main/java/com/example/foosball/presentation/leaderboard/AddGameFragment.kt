@@ -19,7 +19,7 @@ import javax.inject.Inject
 class AddGameFragment : Fragment(R.layout.fragment_add_game) {
     @Inject
     lateinit var factory: ViewModelProvider.Factory
-    private val viewModel: LeaderboardViewModel by activityViewModels { factory }
+    private val viewModel: GamesSharedViewModel by activityViewModels { factory }
 
     @Inject
     lateinit var resourceProvider: ResourceProvider

@@ -21,7 +21,7 @@ class LeaderboardFragment : Fragment(R.layout.fragment_leaderboard) {
 
     @Inject
     lateinit var factory: ViewModelProvider.Factory
-    private val viewModel: LeaderboardViewModel by activityViewModels { factory }
+    private val viewModel: GamesSharedViewModel by activityViewModels { factory }
 
     private val viewBinding by viewBinding(FragmentLeaderboardBinding::bind)
 
@@ -36,7 +36,6 @@ class LeaderboardFragment : Fragment(R.layout.fragment_leaderboard) {
         viewBinding.btnSort.onClick {
             showSortBottomSheet()
         }
-        viewModel.getGames()
         viewModel.leaderboardLiveData.observe(viewLifecycleOwner) { results ->
             viewBinding.progressBar.visibility = GONE
             (viewBinding.rvLeaderboard.adapter as LeaderboardsAdapter).update(results)
@@ -49,17 +48,17 @@ class LeaderboardFragment : Fragment(R.layout.fragment_leaderboard) {
 
     private fun initList() {
         viewBinding.rvLeaderboard.layoutManager = LinearLayoutManager(requireContext())
-        viewBinding.rvLeaderboard.adapter = LeaderboardsAdapter(listOf())
+        viewBinding.rvLeaderboard.adapter = LeaderboardsAdapter()
     }
 
     private fun showSortBottomSheet() {
         SortBottomSheetDialog(object : SortBottomSheetDialog.OnSortTypeClickListener {
             override fun sortByGamesWon() {
-                viewModel.sortChanged(LeaderboardViewModel.SortBy.GAMES_WON)
+                viewModel.sortChanged(GamesSharedViewModel.SortBy.GAMES_WON)
             }
 
             override fun sortByGamesCount() {
-                viewModel.sortChanged(LeaderboardViewModel.SortBy.GAMES_COUNT)
+                viewModel.sortChanged(GamesSharedViewModel.SortBy.GAMES_COUNT)
             }
         }).show(
             requireActivity().supportFragmentManager,

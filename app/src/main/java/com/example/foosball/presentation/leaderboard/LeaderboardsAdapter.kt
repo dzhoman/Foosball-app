@@ -7,9 +7,14 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.foosball.R
 import com.example.foosball.domain.entity.LeaderboardItemEntity
+import com.example.foosball.utils.autoNotify
+import kotlin.properties.Delegates
 
-class LeaderboardsAdapter(private var items: List<LeaderboardItemEntity>) :
-    RecyclerView.Adapter<LeaderboardsAdapter.ViewHolder>() {
+class LeaderboardsAdapter : RecyclerView.Adapter<LeaderboardsAdapter.ViewHolder>() {
+
+    private var items: List<LeaderboardItemEntity> by Delegates.observable(emptyList()) { _, oldList, newList ->
+        autoNotify(oldList, newList) { o, n -> o.userName == n.userName }
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = ViewHolder(
         LayoutInflater.from(parent.context).inflate(
@@ -30,9 +35,7 @@ class LeaderboardsAdapter(private var items: List<LeaderboardItemEntity>) :
     }
 
     fun update(results: List<LeaderboardItemEntity>) {
-        //todo improve with DiffUtils
         items = results
-        notifyItemRangeChanged(0, items.size)
     }
 
     inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {

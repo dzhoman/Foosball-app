@@ -3,6 +3,7 @@ package com.example.foosball.presentation.leaderboard
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.example.foosball.data.scheduler.BackgroundScheduler
 import com.example.foosball.domain.entity.GameResultEntity
+import com.example.foosball.domain.entity.GameResultEntityFactory
 import com.example.foosball.domain.entity.LeaderboardItemEntity
 import com.example.foosball.domain.leaderboard.AddGameUseCase
 import com.example.foosball.domain.leaderboard.AddGameUseCaseImpl
@@ -11,9 +12,11 @@ import com.example.foosball.domain.leaderboard.GetGamesUseCaseImpl
 import com.example.foosball.domain.repository.GamesRepository
 import com.example.foosball.domain.scheduler.ExecutionScheduler
 import com.example.foosball.domain.scheduler.PostExecutionScheduler
+import com.example.foosball.presentation.model.GameResult
 import com.example.foosball.presentation.scheduler.UiScheduler
 import com.example.foosball.presentation.utils.LiveDataTestUtil
 import io.reactivex.rxjava3.android.plugins.RxAndroidPlugins
+import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.plugins.RxJavaPlugins
 import io.reactivex.rxjava3.schedulers.Schedulers
@@ -23,9 +26,10 @@ import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mockito
 import org.mockito.Mockito.mock
+import java.util.*
 
 
-class LeaderboardViewModelTest {
+class GamesSharedViewModelTest {
 
     // Executes each task synchronously using Architecture Components.
     @get:Rule
@@ -34,9 +38,10 @@ class LeaderboardViewModelTest {
     private lateinit var getGameUseCase: GetGamesUseCase
     private lateinit var addGameUseCase: AddGameUseCase
     private lateinit var gamesRepository: GamesRepository
-    private lateinit var viewModel: LeaderboardViewModel
+    private lateinit var viewModel: GamesSharedViewModel
     private lateinit var bgScheduler: ExecutionScheduler
     private lateinit var uiScheduler: PostExecutionScheduler
+    private lateinit var gameResultFactory: GameResultEntityFactory
 
     @Before
     fun setup() {
@@ -44,16 +49,18 @@ class LeaderboardViewModelTest {
         RxJavaPlugins.setIoSchedulerHandler { Schedulers.trampoline() }
         bgScheduler = BackgroundScheduler()
         uiScheduler = UiScheduler()
+        gameResultFactory = mock(GameResultEntityFactory::class.java)
         gamesRepository = mock(GamesRepository::class.java)
         getGameUseCase = GetGamesUseCaseImpl(gamesRepository, bgScheduler, uiScheduler)
-        addGameUseCase = AddGameUseCaseImpl(gamesRepository, bgScheduler, uiScheduler)
-        viewModel = LeaderboardViewModel(getGameUseCase, addGameUseCase)
+        addGameUseCase =
+            AddGameUseCaseImpl(gamesRepository, bgScheduler, uiScheduler, gameResultFactory)
+        viewModel = GamesSharedViewModel(getGameUseCase, addGameUseCase)
     }
 
     @Test
     fun `Get games works as expected`() {
-        val gameResults = listOf(GameResultEntity("Amos", "Diego", 4, 5))
-        Mockito.`when`(gamesRepository.getGames()).thenReturn(Single.just(gameResults))
+        val gameResults = listOf(GameResultEntity("1", "Amos", "Diego", 4, 5))
+        Mockito.`when`(gamesRepository.getGames()).thenReturn(Observable.just(gameResults))
 
         viewModel.getGames()
 
@@ -64,84 +71,71 @@ class LeaderboardViewModelTest {
 
     @Test
     fun `Add game works as expected`() {
-        val gameResult = GameResultEntity("Amos", "Diego", 4, 5)
-        Mockito.`when`(gamesRepository.addGame(gameResult))
-            .thenReturn(Single.just(listOf(gameResult)))
+        val gameResult = GameResult("Amos", "Diego", 4, 5)
+        val expectedResult = GameResultEntity(UUID.randomUUID().toString(), "Amos", "Diego", 4, 5)
+        Mockito.`when`(
+            gameResultFactory.createSingleGameResult(
+                gameResult.firstPerson,
+                gameResult.secondPerson,
+                gameResult.firstScore,
+                gameResult.secondScore
+            )
+        ).thenReturn(expectedResult)
 
-        viewModel.addGame("Amos", "Diego", 4, 5)
+        Mockito.`when`(gamesRepository.addGame(expectedResult))
+            .thenReturn(Single.just(listOf(expectedResult)))
 
-        assertEquals(
-            LiveDataTestUtil.getValue(viewModel.gamesLiveData)[0], gameResult
+        viewModel.addGame(
+            gameResult.firstPerson,
+            gameResult.secondPerson,
+            gameResult.firstScore,
+            gameResult.secondScore
         )
+
+        assertEquals(LiveDataTestUtil.getValue(viewModel.gamesLiveData)[0], expectedResult)
     }
 
     @Test
     fun `Leaderboard updates after get games flow`() {
         val gameResults = listOf(
-            GameResultEntity("Amos", "Diego", 4, 5),
-            GameResultEntity("Amos", "Diego", 1, 5),
+            GameResultEntity("1", "Amos", "Diego", 4, 5),
+            GameResultEntity("2", "Amos", "Diego", 1, 5),
         )
         val expectedLeaderboard = listOf(
             LeaderboardItemEntity("Diego", 2, 2), LeaderboardItemEntity("Amos", 2, 0)
         )
-        Mockito.`when`(gamesRepository.getGames()).thenReturn(Single.just(gameResults))
+        Mockito.`when`(gamesRepository.getGames()).thenReturn(Observable.just(gameResults))
 
         viewModel.getGames()
 
-        assertEquals(
-            LiveDataTestUtil.getValue(viewModel.leaderboardLiveData), expectedLeaderboard
-        )
-    }
-
-    @Test
-    fun `Leaderboard updates after add game flow`() {
-        val gameResults = mutableListOf(
-            GameResultEntity("Amos", "Diego", 4, 5),
-            GameResultEntity("Amos", "Diego", 1, 5),
-        )
-        val gameResult = GameResultEntity("Amos", "Diego", 6, 5)
-        val expectedLeaderboard = listOf(
-            LeaderboardItemEntity("Diego", 2, 2), LeaderboardItemEntity("Amos", 2, 0)
-        )
-        val expectedUpdatedLeaderboard = listOf(
-            LeaderboardItemEntity("Diego", 3, 2), LeaderboardItemEntity("Amos", 3, 1)
-        )
-        Mockito.`when`(gamesRepository.getGames()).thenReturn(Single.just(gameResults))
-
-        viewModel.getGames()
-
-        assertEquals(
-            LiveDataTestUtil.getValue(viewModel.leaderboardLiveData), expectedLeaderboard
-        )
-
-        //now add game flow, leaderboards should be updated
-        gameResults.add(gameResult)
-        Mockito.`when`(gamesRepository.addGame(gameResult)).thenReturn(Single.just(gameResults))
-        viewModel.addGame("Amos", "Diego", 6, 5)
-
-        assertEquals(
-            LiveDataTestUtil.getValue(viewModel.leaderboardLiveData), expectedUpdatedLeaderboard
-        )
+        assertEquals(LiveDataTestUtil.getValue(viewModel.leaderboardLiveData), expectedLeaderboard)
     }
 
     @Test
     fun `Add game emit error`() {
         val errorMsg = "smth went wrong"
-        val gameResult = GameResultEntity("Amos", "Diego", 4, 5)
-        Mockito.`when`(gamesRepository.addGame(gameResult))
+        val gameResult = GameResult("Amos", "Diego", 4, 5)
+        val expectedResult = GameResultEntity(UUID.randomUUID().toString(), "Amos", "Diego", 4, 5)
+        Mockito.`when`(
+            gameResultFactory.createSingleGameResult(
+                gameResult.firstPerson,
+                gameResult.secondPerson,
+                gameResult.firstScore,
+                gameResult.secondScore
+            )
+        ).thenReturn(expectedResult)
+        Mockito.`when`(gamesRepository.addGame(expectedResult))
             .thenReturn(Single.error(Throwable(errorMsg)))
 
         viewModel.addGame("Amos", "Diego", 4, 5)
 
-        assertEquals(
-            LiveDataTestUtil.getValue(viewModel.errorEvent), errorMsg
-        )
+        assertEquals(LiveDataTestUtil.getValue(viewModel.errorEvent), errorMsg)
     }
 
     @Test
     fun `Get games emit error`() {
         val errorMsg = "smth went wrong"
-        Mockito.`when`(gamesRepository.getGames()).thenReturn(Single.error(Throwable(errorMsg)))
+        Mockito.`when`(gamesRepository.getGames()).thenReturn(Observable.error(Throwable(errorMsg)))
 
         viewModel.getGames()
 

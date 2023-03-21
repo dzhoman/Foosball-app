@@ -7,11 +7,14 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.foosball.R
 import com.example.foosball.domain.entity.GameResultEntity
+import com.example.foosball.utils.autoNotify
+import kotlin.properties.Delegates
 
-class GamesListAdapter(
-    private var items: List<GameResultEntity>
-) :
-    RecyclerView.Adapter<GamesListAdapter.ViewHolder>() {
+class GamesListAdapter : RecyclerView.Adapter<GamesListAdapter.ViewHolder>() {
+
+    private var items: List<GameResultEntity> by Delegates.observable(emptyList()) { _, oldList, newList ->
+        autoNotify(oldList, newList) { o, n -> o.id == n.id }
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = ViewHolder(
         LayoutInflater.from(parent.context).inflate(
@@ -32,23 +35,20 @@ class GamesListAdapter(
     }
 
     fun update(results: List<GameResultEntity>) {
-        //todo improve with DiffUtils
         items = results
-        notifyItemRangeChanged(0, items.size)
     }
 
     inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
 
         fun bind(item: GameResultEntity) = with(itemView) {
             val tvResult = findViewById<TextView>(R.id.tvResult)
-            tvResult.text =
-                context.getString(
-                    R.string.game_result_template,
-                    item.firstPerson,
-                    item.firstScore,
-                    item.secondScore,
-                    item.secondPerson
-                )
+            tvResult.text = context.getString(
+                R.string.game_result_template,
+                item.firstPerson,
+                item.firstScore,
+                item.secondScore,
+                item.secondPerson
+            )
         }
     }
 }

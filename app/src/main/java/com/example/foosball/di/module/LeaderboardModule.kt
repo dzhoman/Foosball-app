@@ -15,7 +15,7 @@ import com.example.foosball.domain.leaderboard.GetGamesUseCaseImpl
 import com.example.foosball.domain.repository.GamesRepository
 import com.example.foosball.domain.scheduler.ExecutionScheduler
 import com.example.foosball.domain.scheduler.PostExecutionScheduler
-import com.example.foosball.presentation.leaderboard.LeaderboardViewModel
+import com.example.foosball.presentation.leaderboard.GamesSharedViewModel
 import com.example.foosball.presentation.scheduler.UiScheduler
 import dagger.Binds
 import dagger.Module
@@ -54,6 +54,6 @@ abstract class LeaderboardModule {
 
     @Binds
     @IntoMap
-    @ViewModelKey(LeaderboardViewModel::class)
-    abstract fun bindLeaderboardViewModel(viewModel: LeaderboardViewModel): ViewModel
+    @ViewModelKey(GamesSharedViewModel::class)
+    abstract fun bindLeaderboardViewModel(viewModel: GamesSharedViewModel): ViewModel
 }
